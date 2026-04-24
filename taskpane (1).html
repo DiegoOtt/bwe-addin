@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BWE Mail Tracker</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f3f4f6;
+      color: #1a1a2e;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-icon { font-size: 20px; }
+    .header h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.3px; }
+    .header p { font-size: 11px; opacity: 0.65; margin-top: 1px; }
+
+    .body { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: #6b7280;
+      margin-bottom: 10px;
+    }
+
+    label { display: block; font-weight: 500; margin-bottom: 4px; color: #374151; }
+
+    select, input {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #1a1a2e;
+      background: #fafafa;
+      transition: border-color 0.15s;
+      appearance: none;
+    }
+    select:focus, input:focus {
+      outline: none;
+      border-color: #4f46e5;
+      background: white;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: #6b7280; font-size: 12px; }
+    .info-value { font-weight: 600; color: #1a1a2e; font-size: 12px; max-width: 60%; text-align: right; word-break: break-all; }
+
+    .subject-preview {
+      background: #f0f4ff;
+      border: 1.5px solid #c7d2fe;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 12px;
+      color: #3730a3;
+      font-weight: 600;
+      word-break: break-all;
+      line-height: 1.5;
+      min-height: 36px;
+    }
+    .subject-placeholder {
+      color: #9ca3af;
+      font-weight: 400;
+      font-style: italic;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: white;
+    }
+    .btn-primary:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+      border: 1.5px solid #e5e7eb;
+    }
+    .btn-secondary:hover { background: #e5e7eb; }
+
+    .status {
+      padding: 9px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      display: none;
+      align-items: center;
+      gap: 7px;
+    }
+    .status.show { display: flex; }
+    .status.info { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .status.success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .status.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .status.warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-blue { background: #eff6ff; color: #1d4ed8; }
+    .badge-green { background: #f0fdf4; color: #166534; }
+
+    .divider { height: 1px; background: #f3f4f6; margin: 2px 0; }
+
+    .multiple-options { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+    .option-btn {
+      padding: 8px 12px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 6px;
+      background: white;
+      cursor: pointer;
+      text-align: left;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+    .option-btn:hover { border-color: #4f46e5; background: #f0f4ff; }
+    .option-btn.selected { border-color: #4f46e5; background: #eff6ff; color: #3730a3; }
+    .option-equipo { font-weight: 600; color: #1a1a2e; }
+    .option-prov { color: #6b7280; font-size: 11px; margin-top: 1px; }
+
+    #section-result { display: none; }
+    #section-multiple { display: none; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">📧</div>
+  <div>
+    <h1>BWE Mail Tracker</h1>
+    <p>Numeración y registro de correos</p>
+  </div>
+</div>
+
+<div class="body">
+
+  <!-- STATUS -->
+  <div id="status" class="status info">
+    <div class="spinner"></div>
+    <span id="status-text">Iniciando...</span>
+  </div>
+
+  <!-- PASO 1: PROYECTO -->
+  <div class="card" id="section-proyecto">
+    <div class="card-title">1 · Proyecto</div>
+    <label for="sel-proyecto">Seleccioná el proyecto</label>
+    <select id="sel-proyecto">
+      <option value="">— Elegir proyecto —</option>
+      <option value="23017">23017 · Lachendorf</option>
+      <option value="23026">23026 · Lumin</option>
+    </select>
+  </div>
+
+  <!-- PASO 2: DESTINATARIO -->
+  <div class="card" id="section-dest">
+    <div class="card-title">2 · Destinatario detectado</div>
+    <div id="dest-info">
+      <div class="info-row">
+        <span class="info-label">Email</span>
+        <span class="info-value" id="dest-email">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Estado</span>
+        <span class="info-value" id="dest-estado">Esperando proyecto...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASO 3: MÚLTIPLES COINCIDENCIAS -->
+  <div class="card" id="section-multiple">
+    <div class="card-title">3 · Seleccioná el equipo</div>
+    <p style="color:#6b7280;font-size:12px;margin-bottom:8px;">Este proveedor tiene varios equipos en el proyecto:</p>
+    <div class="multiple-options" id="options-container"></div>
+  </div>
+
+  <!-- PASO 4: RESULTADO -->
+  <div class="card" id="section-result">
+    <div class="card-title">4 · Asunto generado</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div class="info-row">
+        <span class="info-label">Proveedor</span>
+        <span class="info-value" id="res-proveedor">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Equipo</span>
+        <span class="info-value" id="res-equipo">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">N° correlativo</span>
+        <span class="info-value"><span class="badge badge-blue" id="res-numero">—</span></span>
+      </div>
+      <div class="divider"></div>
+      <div class="card-title" style="margin-bottom:6px;">Asunto final</div>
+      <div class="subject-preview" id="res-asunto">
+        <span class="subject-placeholder">Esperando datos...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTONES -->
+  <button class="btn btn-primary" id="btn-aplicar" disabled onclick="aplicarAsunto()">
+    ✅ Aplicar asunto al correo
+  </button>
+  <button class="btn btn-secondary" id="btn-reset" onclick="resetPanel()" style="display:none">
+    🔄 Reiniciar
+  </button>
+
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const PROYECTOS = {
+  "23017": {
+    nombre: "Lachendorf",
+    siteUrl: "https://berkesuruguay.sharepoint.com/sites/23017-Lachendorf",
+    driveRelPath: "/sites/23017-Lachendorf/Shared%20Documents/03-Procurement/Z.%20COMMUNICATION%20MATRIX%20WITH%20SUPPLIERS/23017-Communication%20matrix%20with%20suppliers.xlsx",
+    sufijo: "BWE",
+    headerRow: 5
+  },
+  "23026": {
+    nombre: "Lumin",
+    siteUrl: "https://berkesuruguay.sharepoint.com/sites/23026-Lumin",
+    driveRelPath: "",  // completar cuando corresponda
+    sufijo: "BWE",
+    headerRow: 4
+  }
+};
+
+const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
+const CLIENT_ID = "22f176bc-fca7-4712-a685-66edc7bc61ab";
+
+const msalConfig = {
+  auth: {
+    clientId: CLIENT_ID,
+    authority: "https://login.microsoftonline.com/46b0af6f-f077-4ef3-a518-5191f9886c12",
+    redirectUri: "https://diegoott.github.io/bwe-addin/taskpane.html"
+  },
+  cache: { cacheLocation: "sessionStorage" }
+};
+
+let msalInstance;
+let accessToken = null;
+let proyectoActual = null;
+let destinatarioSMTP = null;
+let matchSeleccionado = null;
+let asuntoGenerado = null;
+let numeroAsignado = null;
+let hojaDestino = null;
+let filaEscritura = null;
+let workbookId = null;
+
+// ============================================================
+// INIT
+// ============================================================
+Office.onReady(async (info) => {
+  if (info.host === Office.HostType.Outlook) {
+    setStatus("info", "Detectando destinatario...");
+    await detectarDestinatario();
+    setStatus("", "");
+
+    document.getElementById("sel-proyecto").addEventListener("change", onProyectoChange);
+  }
+});
+
+async function detectarDestinatario() {
+  return new Promise((resolve) => {
+    const item = Office.context.mailbox.item;
+    const recips = item.to;
+
+    recips.getAsync((result) => {
+      if (result.status !== Office.AsyncResultStatus.Succeeded || result.value.length === 0) {
+        document.getElementById("dest-email").textContent = "Sin destinatario";
+        resolve();
+        return;
+      }
+
+      // Buscar primer destinatario externo
+      const internos = ["berkes.com", "berkes.com.uy", "bwe.uy", "bwe.com.uy"];
+      let externo = null;
+
+      for (const r of result.value) {
+        const addr = (r.emailAddress || "").toLowerCase();
+        const dom = addr.split("@")[1] || "";
+        if (!internos.includes(dom)) { externo = r; break; }
+      }
+
+      if (!externo) externo = result.value[0];
+      destinatarioSMTP = (externo.emailAddress || "").toLowerCase().trim();
+      document.getElementById("dest-email").textContent = destinatarioSMTP || "—";
+      resolve();
+    });
+  });
+}
+
+// ============================================================
+// PROYECTO CHANGE
+// ============================================================
+async function onProyectoChange() {
+  const val = document.getElementById("sel-proyecto").value;
+  if (!val) return;
+
+  proyectoActual = val;
+  resetResultados();
+  document.getElementById("dest-estado").textContent = "Buscando en tabla...";
+  setStatus("info", "Autenticando con Microsoft 365...");
+
+  try {
+    accessToken = await getAccessToken();
+    workbookId = await getWorkbookId(PROYECTOS[val].driveRelPath);
+    setStatus("info", "Buscando proveedor...");
+    await buscarProveedor();
+  } catch (e) {
+    setStatus("error", "Error: " + e.message);
+    document.getElementById("dest-estado").textContent = "Error de conexión";
+  }
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+async function getAccessToken() {
+  if (!msalInstance) {
+    msalInstance = new msal.PublicClientApplication(msalConfig);
+    await msalInstance.initialize();
+  }
+
+  const scopes = ["Files.ReadWrite.All", "Sites.ReadWrite.All"];
+
+  try {
+    const resp = await msalInstance.acquireTokenSilent({
+      scopes,
+      account: msalInstance.getAllAccounts()[0]
+    });
+    return resp.accessToken;
+  } catch {
+    const resp = await msalInstance.acquireTokenPopup({ scopes });
+    return resp.accessToken;
+  }
+}
+
+// ============================================================
+// GRAPH: obtener workbook ID desde path
+// ============================================================
+async function getWorkbookId(relPath) {
+  const url = `${GRAPH_BASE}/sites/berkesuruguay.sharepoint.com:/sites/${proyectoActual === "23017" ? "23017-Lachendorf" : "23026-Lumin"}:/drive/root:${relPath}`;
+  const resp = await graphGet(url);
+  return resp.id;
+}
+
+// ============================================================
+// BUSCAR PROVEEDOR EN DatosProveedores
+// ============================================================
+async function buscarProveedor() {
+  if (!destinatarioSMTP) {
+    setStatus("warning", "No se detectó destinatario externo.");
+    return;
+  }
+
+  const sitePath = proyectoActual === "23017" ? "23017-Lachendorf" : "23026-Lumin";
+  const driveRelPath = PROYECTOS[proyectoActual].driveRelPath;
+
+  // Leer hoja DatosProveedores
+  const rangeUrl = `${GRAPH_BASE}/sites/berkesuruguay.sharepoint.com:/sites/${sitePath}:/drive/root:${driveRelPath}:/workbook/worksheets/DatosProveedores/usedRange`;
+  const data = await graphGet(rangeUrl);
+
+  const rows = data.values;
+  if (!rows || rows.length < 2) {
+    setStatus("warning", "La hoja DatosProveedores está vacía.");
+    return;
+  }
+
+  // Cabecera: Proyecto | CorreoProveedor | NumeroEquipo | NombreEquipo | TipoContacto | Proveedor
+  const header = rows[0].map(h => (h || "").toString().toLowerCase().trim());
+  const iProyecto  = header.indexOf("proyecto");
+  const iCorreo    = header.indexOf("correoproveedor");
+  const iNumEq     = header.indexOf("numeroequipo");
+  const iNomEq     = header.indexOf("nombreequipo");
+  const iProveedor = header.indexOf("proveedor");
+
+  const matches = [];
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const proyFila = (row[iProyecto] || "").toString().trim();
+    if (proyFila !== proyectoActual) continue;
+
+    let correoRaw = (row[iCorreo] || "").toString().toLowerCase()
+      .replace(/mailto:/g, "")
+      .replace(/\s/g, "")
+      .replace(/,/g, ";");
+
+    const correos = correoRaw.split(";").filter(c => c.length > 0);
+
+    if (correos.includes(destinatarioSMTP)) {
+      matches.push({
+        proveedor: (row[iProveedor] || "").toString().trim(),
+        numeroEquipo: (row[iNumEq] || "").toString().trim(),
+        nombreEquipo: (row[iNomEq] || "").toString().trim()
+      });
+    }
+  }
+
+  if (matches.length === 0) {
+    document.getElementById("dest-estado").textContent = "No encontrado en tabla";
+    setStatus("warning", "Destinatario no encontrado en DatosProveedores para este proyecto.");
+    return;
+  }
+
+  if (matches.length === 1) {
+    document.getElementById("dest-estado").innerHTML = `<span class="badge badge-green">Encontrado</span>`;
+    setStatus("", "");
+    matchSeleccionado = matches[0];
+    await calcularAsunto();
+  } else {
+    document.getElementById("dest-estado").innerHTML = `<span class="badge badge-blue">${matches.length} coincidencias</span>`;
+    setStatus("info", "Seleccioná el equipo correspondiente.");
+    mostrarOpciones(matches);
+  }
+}
+
+// ============================================================
+// MÚLTIPLES COINCIDENCIAS
+// ============================================================
+function mostrarOpciones(matches) {
+  const container = document.getElementById("options-container");
+  container.innerHTML = "";
+
+  matches.forEach((m, i) => {
+    const btn = document.createElement("div");
+    btn.className = "option-btn";
+    btn.innerHTML = `
+      <div class="option-equipo">${m.numeroEquipo} · ${m.nombreEquipo}</div>
+      <div class="option-prov">Proveedor: ${m.proveedor}</div>
+    `;
+    btn.onclick = () => {
+      document.querySelectorAll(".option-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      matchSeleccionado = m;
+      calcularAsunto();
+    };
+    container.appendChild(btn);
+  });
+
+  document.getElementById("section-multiple").style.display = "block";
+}
+
+// ============================================================
+// CALCULAR ASUNTO Y NÚMERO
+// ============================================================
+async function calcularAsunto() {
+  setStatus("info", "Calculando número correlativo...");
+
+  const { proveedor, numeroEquipo, nombreEquipo } = matchSeleccionado;
+  const cfg = PROYECTOS[proyectoActual];
+  const sitePath = proyectoActual === "23017" ? "23017-Lachendorf" : "23026-Lumin";
+
+  // Nombre de hoja destino
+  hojaDestino = `${numeroEquipo}-${cfg.sufijo}-${proveedor}`;
+
+  // Leer hoja del proveedor
+  let usedRange;
+  try {
+    const url = `${GRAPH_BASE}/sites/berkesuruguay.sharepoint.com:/sites/${sitePath}:/drive/root:${cfg.driveRelPath}:/workbook/worksheets/${encodeURIComponent(hojaDestino)}/usedRange`;
+    usedRange = await graphGet(url);
+  } catch {
+    // Hoja no existe aún, número = 1
+    usedRange = null;
+  }
+
+  let maxNumero = 0;
+  if (usedRange && usedRange.values) {
+    const rows = usedRange.values;
+    const startRow = cfg.headerRow; // índice base 0 en el array
+    for (let i = startRow; i < rows.length; i++) {
+      const val = rows[i][0];
+      if (val && !isNaN(parseInt(val))) {
+        const n = parseInt(val);
+        if (n > maxNumero) maxNumero = n;
+      }
+    }
+  }
+
+  numeroAsignado = maxNumero + 1;
+
+  // Texto del asunto actual (limpio)
+  const asuntoActual = await getSubjectAsync();
+  let textoLimpio = limpiarAsunto(asuntoActual);
+  textoLimpio = quitarNombreEquipo(textoLimpio, nombreEquipo);
+  if (nombreEquipo) textoLimpio = `${nombreEquipo} - ${textoLimpio}`;
+
+  asuntoGenerado = `${proyectoActual}-${cfg.sufijo}-${proveedor}-${String(numeroAsignado).padStart(3,"0")}-${textoLimpio}`;
+
+  // Mostrar resultado
+  document.getElementById("res-proveedor").textContent = proveedor;
+  document.getElementById("res-equipo").textContent = `${numeroEquipo} · ${nombreEquipo}`;
+  document.getElementById("res-numero").textContent = String(numeroAsignado).padStart(3,"0");
+  document.getElementById("res-asunto").textContent = asuntoGenerado;
+
+  document.getElementById("section-result").style.display = "block";
+  document.getElementById("btn-aplicar").disabled = false;
+  setStatus("success", "Asunto listo. Revisá y aplicá.");
+}
+
+// ============================================================
+// APLICAR ASUNTO
+// ============================================================
+async function aplicarAsunto() {
+  document.getElementById("btn-aplicar").disabled = true;
+  setStatus("info", "Aplicando asunto y registrando...");
+
+  try {
+    // 1. Modificar asunto en el borrador
+    await setSubjectAsync(asuntoGenerado);
+
+    // 2. Escribir en la hoja del proveedor
+    await registrarEnHoja();
+
+    // 3. Escribir en RegistroCorreos
+    await registrarEnLog();
+
+    setStatus("success", "✅ Asunto aplicado y registrado correctamente.");
+    document.getElementById("btn-reset").style.display = "block";
+
+  } catch (e) {
+    setStatus("error", "Error al aplicar: " + e.message);
+    document.getElementById("btn-aplicar").disabled = false;
+  }
+}
+
+// ============================================================
+// REGISTRAR EN HOJA DEL PROVEEDOR
+// ============================================================
+async function registrarEnHoja() {
+  const cfg = PROYECTOS[proyectoActual];
+  const sitePath = proyectoActual === "23017" ? "23017-Lachendorf" : "23026-Lumin";
+  const { nombreEquipo } = matchSeleccionado;
+
+  // Obtener fecha
+  const hoy = new Date();
+  const fecha = `${hoy.getDate()}/${hoy.getMonth()+1}/${hoy.getFullYear()}`;
+
+  // Descripción = asunto limpio sin el código
+  const desc = limpiarAsunto(await getSubjectAsync());
+
+  // Fila a escribir: necesitamos la primera fila vacía después del header
+  let sheetRows;
+  try {
+    const url = `${GRAPH_BASE}/sites/berkesuruguay.sharepoint.com:/sites/${sitePath}:/drive/root:${cfg.driveRelPath}:/workbook/worksheets/${encodeURIComponent(hojaDestino)}/usedRange`;
+    const data = await graphGet(url);
+    sheetRows = data.rowCount || cfg.headerRow;
+  } catch {
+    sheetRows = cfg.headerRow;
+  }
+
+  const nextRow = sheetRows + 1;
+  const range = `A${nextRow}:F${nextRow}`;
+
+  const values = [[
+    String(numeroAsignado).padStart(3,"0"),
+    matchSeleccionado.nombreEquipo + " - " + limpiarCodigoAsunto(asuntoGenerado),
+    fecha,
+    "DO",  // iniciales del remitente, hardcodeado por ahora
+    destinatarioSMTP,
+    asuntoGenerado
+  ]];
+
+  const url = `${GRAPH_BASE}/sites/berkesuruguay.sharepoint.com:/sites/${sitePath}:/drive/root:${cfg.driveRelPath}:/workbook/worksheets/${encodeURIComponent(hojaDestino)}/range(address='${range}')`;
+  await graphPatch(url, { values });
+}
+
+// ============================================================
+// REGISTRAR EN LOG GENERAL
+// ============================================================
+async function registrarEnLog() {
+  const cfg = PROYECTOS[proyectoActual];
+  const sitePath = proyectoActual === "23017" ? "23017-Lachendorf" : "23026-Lumin";
+
+  const hoy = new Date();
+  const fecha = hoy.toISOString();
+
+  let logRows;
+  try {
+    const url = `${GRAPH_BASE}/sites/berkesuruguay.sharepoint.com:/sites/${sitePath}:/drive/root:${cfg.driveRelPath}:/workbook/worksheets/RegistroCorreos/usedRange`;
+    const data = await graphGet(url);
+    logRows = data.rowCount || 1;
+  } catch {
+    logRows = 1;
+  }
+
+  const nextRow = logRows + 1;
+  const range = `A${nextRow}:G${nextRow}`;
+
+  const values = [[
+    fecha,
+    destinatarioSMTP,
+    matchSeleccionado.proveedor,
+    matchSeleccionado.numeroEquipo,
+    matchSeleccionado.nombreEquipo,
+    "diego.ottonello@bwe.uy",
+    asuntoGenerado
+  ]];
+
+  const url = `${GRAPH_BASE}/sites/berkesuruguay.sharepoint.com:/sites/${sitePath}:/drive/root:${cfg.driveRelPath}:/workbook/worksheets/RegistroCorreos/range(address='${range}')`;
+  await graphPatch(url, { values });
+}
+
+// ============================================================
+// GRAPH HELPERS
+// ============================================================
+async function graphGet(url) {
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+async function graphPatch(url, body) {
+  const resp = await fetch(url, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err.error?.message || `HTTP ${resp.status}`);
+  }
+  return resp.json();
+}
+
+// ============================================================
+// OFFICE HELPERS
+// ============================================================
+function getSubjectAsync() {
+  return new Promise((resolve, reject) => {
+    Office.context.mailbox.item.subject.getAsync(r => {
+      if (r.status === Office.AsyncResultStatus.Succeeded) resolve(r.value);
+      else reject(new Error(r.error.message));
+    });
+  });
+}
+
+function setSubjectAsync(value) {
+  return new Promise((resolve, reject) => {
+    Office.context.mailbox.item.subject.setAsync(value, r => {
+      if (r.status === Office.AsyncResultStatus.Succeeded) resolve();
+      else reject(new Error(r.error.message));
+    });
+  });
+}
+
+// ============================================================
+// TEXTO HELPERS
+// ============================================================
+function limpiarAsunto(s) {
+  s = s.replace(/^(RE|FW|RV|TR)\s*:\s*/gi, "").trim();
+  s = s.replace(/\d{5}-(?:[A-Z]{2,5}|B&B)-[A-Z0-9&]{2,15}-\d{3}-/gi, "").trim();
+  return s;
+}
+
+function limpiarCodigoAsunto(s) {
+  return s.replace(/^\d{5}-[A-Z]+-[A-Z0-9]+-\d{3}-/, "").trim();
+}
+
+function quitarNombreEquipo(texto, equipo) {
+  if (!equipo) return texto;
+  const prefix = equipo + " - ";
+  if (texto.toLowerCase().startsWith(prefix.toLowerCase())) {
+    return texto.substring(prefix.length);
+  }
+  return texto;
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function setStatus(type, msg) {
+  const el = document.getElementById("status");
+  const txt = document.getElementById("status-text");
+
+  el.className = "status";
+  if (!type) { el.style.display = "none"; return; }
+
+  el.classList.add("show", type);
+  el.style.display = "flex";
+
+  if (type === "info") {
+    el.innerHTML = `<div class="spinner"></div><span>${msg}</span>`;
+  } else {
+    el.innerHTML = `<span>${msg}</span>`;
+  }
+}
+
+function resetResultados() {
+  matchSeleccionado = null;
+  asuntoGenerado = null;
+  document.getElementById("section-result").style.display = "none";
+  document.getElementById("section-multiple").style.display = "none";
+  document.getElementById("btn-aplicar").disabled = true;
+  document.getElementById("btn-reset").style.display = "none";
+  document.getElementById("options-container").innerHTML = "";
+  document.getElementById("res-asunto").innerHTML = '<span class="subject-placeholder">Esperando datos...</span>';
+}
+
+function resetPanel() {
+  document.getElementById("sel-proyecto").value = "";
+  document.getElementById("dest-estado").textContent = "Esperando proyecto...";
+  proyectoActual = null;
+  matchSeleccionado = null;
+  resetResultados();
+  setStatus("", "");
+}
+</script>
+</body>
+</html>
