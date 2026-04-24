@@ -28,7 +28,7 @@
   <FormSettings>
     <Form xsi:type="ItemEdit">
       <DesktopSettings>
-        <SourceLocation DefaultValue="https://berkesuruguay-my.sharepoint.com/personal/diego_ottonello_bwe_uy/Documents/BWE-Addin/taskpane.html"/>
+        <SourceLocation DefaultValue="https://diegoott.github.io/bwe-addin/taskpane.html"/>
         <RequestedHeight>550</RequestedHeight>
       </DesktopSettings>
     </Form>
@@ -85,8 +85,8 @@
         <bt:Image id="Icon.80x80" DefaultValue="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Mail_(iOS).svg/80px-Mail_(iOS).svg.png"/>
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="Commands.Url" DefaultValue="https://berkesuruguay-my.sharepoint.com/personal/diego_ottonello_bwe_uy/Documents/BWE-Addin/commands.html"/>
-        <bt:Url id="Taskpane.Url" DefaultValue="https://berkesuruguay-my.sharepoint.com/personal/diego_ottonello_bwe_uy/Documents/BWE-Addin/taskpane.html"/>
+        <bt:Url id="Commands.Url" DefaultValue="https://diegoott.github.io/bwe-addin/commands.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://diegoott.github.io/bwe-addin/taskpane.html"/>
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="GroupLabel" DefaultValue="BWE Tracker"/>
